@@ -1,4 +1,4 @@
-# 🎮 HAU Monsters — Cloud-Based Monster Catching App
+# 🎮 MonsterDex — Cloud-Based Monster Catching App
 
 > A real-world monster catching mobile application built with Flutter, powered by AWS cloud infrastructure.  
 
