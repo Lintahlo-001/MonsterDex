@@ -254,7 +254,7 @@ class ServerDownWarning extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Servers Offline',
+              'Server Offline',
               style: TextStyle(
                 color: AppTheme.textWhite,
                 fontSize: 20,
@@ -264,7 +264,7 @@ class ServerDownWarning extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'One or more servers are currently offline. Press OK to open the EC2 panel and turn them on.',
+              'The web server is currently offline. Press OK to open the EC2 panel and turn it on.',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppTheme.textSub, fontSize: 14),
             ),
@@ -306,7 +306,6 @@ class _EC2PanelSheet extends StatefulWidget {
 
 class _EC2PanelSheetState extends State<_EC2PanelSheet> {
   String _webState = '...';
-  String _dbState = '...';
   bool _loading = true;
   bool _toggling = false;
 
@@ -320,12 +319,9 @@ class _EC2PanelSheetState extends State<_EC2PanelSheet> {
     setState(() => _loading = true);
     final web = await LambdaService.getInstanceState(
         ApiConfig.webServerInstanceId, ApiConfig.webServerRegion);
-    final db = await LambdaService.getInstanceState(
-        ApiConfig.dbServerInstanceId, ApiConfig.dbServerRegion);
     if (mounted) {
       setState(() {
         _webState = web;
-        _dbState = db;
         _loading = false;
       });
     }
@@ -373,7 +369,7 @@ class _EC2PanelSheetState extends State<_EC2PanelSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'EC2 Instances',
+                'EC2 Instance',
                 style: TextStyle(
                   color: AppTheme.textWhite,
                   fontSize: 20,
@@ -403,14 +399,6 @@ class _EC2PanelSheetState extends State<_EC2PanelSheet> {
             ApiConfig.webServerInstanceId,
             ApiConfig.webServerRegion,
             _webState,
-          ),
-          const SizedBox(height: 12),
-          _instanceTile(
-            'DB Server',
-            'N. Virginia (us-east-1)',
-            ApiConfig.dbServerInstanceId,
-            ApiConfig.dbServerRegion,
-            _dbState,
           ),
           const SizedBox(height: 8),
         ],

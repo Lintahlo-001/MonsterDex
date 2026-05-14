@@ -8,9 +8,7 @@ class ApiConfig {
   static const String lambdaUrl =
       'https://guejj53w3m6vm7hrfhxq4k6mli0vmzji.lambda-url.us-east-1.on.aws/';
 
-  // EC2 Instance IDs
+  // EC2 Instance ID
   static const String webServerInstanceId = 'i-0e5055a9f438cee54'; // Paris
-  static const String dbServerInstanceId  = 'i-02e56bac508096d22'; // N. Virginia
   static const String webServerRegion = 'eu-west-3';
-  static const String dbServerRegion  = 'us-east-1';
 }

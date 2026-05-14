@@ -5,13 +5,13 @@ import '../services/lambda_service.dart';
 
 class EC2StatusButton extends StatefulWidget {
   const EC2StatusButton({super.key});
+
   @override
   State<EC2StatusButton> createState() => _EC2StatusButtonState();
 }
 
 class _EC2StatusButtonState extends State<EC2StatusButton> {
   String _webState = '...';
-  String _dbState = '...';
   bool _loading = false;
 
   @override
@@ -24,12 +24,9 @@ class _EC2StatusButtonState extends State<EC2StatusButton> {
     setState(() => _loading = true);
     final web = await LambdaService.getInstanceState(
         ApiConfig.webServerInstanceId, ApiConfig.webServerRegion);
-    final db = await LambdaService.getInstanceState(
-        ApiConfig.dbServerInstanceId, ApiConfig.dbServerRegion);
     if (mounted) {
       setState(() {
         _webState = web;
-        _dbState = db;
         _loading = false;
       });
     }
@@ -46,7 +43,8 @@ class _EC2StatusButtonState extends State<EC2StatusButton> {
     return GestureDetector(
       onTap: () => _showPanel(context),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: AppTheme.cardStart,
           borderRadius: BorderRadius.circular(20),
@@ -71,10 +69,9 @@ class _EC2StatusButtonState extends State<EC2StatusButton> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _dot(_webState),
-                  const SizedBox(width: 4),
-                  _dot(_dbState),
                   const SizedBox(width: 6),
-                  const Icon(Icons.cloud, color: AppTheme.accentBlue, size: 16),
+                  const Icon(Icons.cloud,
+                      color: AppTheme.accentBlue, size: 16),
                 ],
               ),
       ),
@@ -88,7 +85,10 @@ class _EC2StatusButtonState extends State<EC2StatusButton> {
           shape: BoxShape.circle,
           color: _stateColor(state),
           boxShadow: [
-            BoxShadow(color: _stateColor(state).withOpacity(0.5), blurRadius: 4)
+            BoxShadow(
+              color: _stateColor(state).withOpacity(0.5),
+              blurRadius: 4,
+            ),
           ],
         ),
       );
@@ -98,34 +98,24 @@ class _EC2StatusButtonState extends State<EC2StatusButton> {
       context: context,
       backgroundColor: AppTheme.bgMid,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      // ✅ Use a StatefulBuilder so the sheet rebuilds when state changes
-      builder: (_) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          return _EC2Panel(
-            webState: _webState,
-            dbState: _dbState,
-            stateColor: _stateColor,
-            onRefresh: () async {
-              await _refresh();
-              // ✅ Also trigger a rebuild of the sheet itself
-              if (mounted) setSheetState(() {});
-            },
-          );
-        },
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => _EC2Panel(
+        webState: _webState,
+        onRefresh: _refresh,
+        stateColor: _stateColor,
       ),
     );
   }
 }
 
 class _EC2Panel extends StatefulWidget {
-  final String webState, dbState;
+  final String webState;
   final VoidCallback onRefresh;
   final Color Function(String) stateColor;
 
   const _EC2Panel({
     required this.webState,
-    required this.dbState,
     required this.onRefresh,
     required this.stateColor,
   });
@@ -137,18 +127,14 @@ class _EC2Panel extends StatefulWidget {
 class _EC2PanelState extends State<_EC2Panel> {
   bool _toggling = false;
 
-  Future<void> _toggle(
-      String instanceId, String region, String currentState) async {
+  Future<void> _toggle(String currentState) async {
     setState(() => _toggling = true);
     final action = currentState == 'running' ? 'stop' : 'start';
-    final success = await LambdaService.toggleInstance(instanceId, region, action);
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to $action instance')),
-      );
-    }
-    // ✅ Wait longer — EC2 state transitions take a few seconds to register
-    await Future.delayed(const Duration(seconds: 4));
+    await LambdaService.toggleInstance(
+        ApiConfig.webServerInstanceId,
+        ApiConfig.webServerRegion,
+        action);
+    await Future.delayed(const Duration(seconds: 3));
     widget.onRefresh();
     if (mounted) setState(() => _toggling = false);
   }
@@ -163,40 +149,30 @@ class _EC2PanelState extends State<_EC2Panel> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('EC2 Instances',
-                  style: TextStyle(
-                      color: AppTheme.textWhite,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'ComicRelief')),
+              const Text(
+                'EC2 Instance',
+                style: TextStyle(
+                  color: AppTheme.textWhite,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'ComicRelief',
+                ),
+              ),
               IconButton(
-                  onPressed: widget.onRefresh,
-                  icon: const Icon(Icons.refresh, color: AppTheme.accentBlue)),
+                onPressed: widget.onRefresh,
+                icon: const Icon(Icons.refresh,
+                    color: AppTheme.accentBlue),
+              ),
             ],
           ),
           const SizedBox(height: 16),
-          _instanceTile(
-            'Web Server',
-            'Paris (eu-west-3)',
-            ApiConfig.webServerInstanceId,
-            ApiConfig.webServerRegion,
-            widget.webState,
-          ),
-          const SizedBox(height: 12),
-          _instanceTile(
-            'DB Server',
-            'N. Virginia (us-east-1)',
-            ApiConfig.dbServerInstanceId,
-            ApiConfig.dbServerRegion,
-            widget.dbState,
-          ),
+          _instanceTile(widget.webState),
         ],
       ),
     );
   }
 
-  Widget _instanceTile(String name, String region, String instanceId,
-      String awsRegion, String state) {
+  Widget _instanceTile(String state) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: AppTheme.cardDecoration,
@@ -210,8 +186,9 @@ class _EC2PanelState extends State<_EC2Panel> {
               color: widget.stateColor(state),
               boxShadow: [
                 BoxShadow(
-                    color: widget.stateColor(state).withOpacity(0.5),
-                    blurRadius: 6)
+                  color: widget.stateColor(state).withOpacity(0.5),
+                  blurRadius: 6,
+                ),
               ],
             ),
           ),
@@ -220,25 +197,34 @@ class _EC2PanelState extends State<_EC2Panel> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name,
-                    style: const TextStyle(
-                        color: AppTheme.textWhite,
-                        fontWeight: FontWeight.w700)),
-                Text('$region • $state',
-                    style: const TextStyle(
-                        color: AppTheme.textSub, fontSize: 12)),
+                const Text(
+                  'Web Server',
+                  style: TextStyle(
+                    color: AppTheme.textWhite,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'ComicRelief',
+                  ),
+                ),
+                Text(
+                  'Paris (eu-west-3) • $state',
+                  style: const TextStyle(
+                    color: AppTheme.textSub,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
           if (_toggling)
             const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2))
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
           else
             Switch(
               value: state == 'running',
-              onChanged: (_) => _toggle(instanceId, awsRegion, state),
+              onChanged: (_) => _toggle(state),
               activeColor: AppTheme.success,
               inactiveThumbColor: AppTheme.danger,
             ),

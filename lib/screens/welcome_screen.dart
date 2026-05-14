@@ -16,7 +16,7 @@ class WelcomeScreen extends StatefulWidget {
 class _WelcomeScreenState extends State<WelcomeScreen>
     with SingleTickerProviderStateMixin {
   bool _checking = true;
-  ConnectionStatus _status = ConnectionStatus.serversDown;
+  ConnectionStatus _status = ConnectionStatus.serverDown;
 
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
@@ -67,9 +67,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   void _showBlockedDialog() async {
-    if (_status == ConnectionStatus.serversDown) {
+    if (_status == ConnectionStatus.serverDown) {
       await ServerDownWarning.show(context);
-      // After EC2 panel is closed, re-check
       _checkStatus();
       return;
     }
@@ -168,10 +167,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         icon = Icons.check_circle_outline;
         label = 'Connected & Ready';
         break;
-      case ConnectionStatus.serversDown:
+      case ConnectionStatus.serverDown:
         color = AppTheme.danger;
         icon = Icons.cloud_off;
-        label = 'Servers Offline — Turn on EC2 first';
+        label = 'Server Offline — Turn on EC2 first';
         break;
       case ConnectionStatus.vpnDisconnected:
         color = AppTheme.warning;

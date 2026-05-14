@@ -1,17 +1,16 @@
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:monsterdex/widgets/tailscale_dialog.dart';
 import '../constants/api.dart';
 import '../services/lambda_service.dart';
+import '../widgets/tailscale_dialog.dart';
+import 'package:flutter/material.dart';
 
 enum ConnectionStatus {
-  allGood,        // both servers running + vpn connected
-  serversDown,    // one or more servers offline
-  vpnDisconnected // servers up but vpn not connected
+  allGood,
+  serverDown,
+  vpnDisconnected,
 }
 
 class TailscaleService {
-  /// Quick check if we can reach the API (VPN + web server both up)
   static Future<bool> isConnected() async {
     try {
       final uri = Uri.parse('${ApiConfig.baseUrl}/health');
@@ -23,34 +22,28 @@ class TailscaleService {
     }
   }
 
-  /// Priority: servers down → vpn disconnected → all good
+  /// Priority: server down → vpn disconnected → all good
   static Future<ConnectionStatus> fullCheck() async {
-    // 1. Check EC2 states first
+    // 1. Check web server EC2 state via Lambda
     final webState = await LambdaService.getInstanceState(
         ApiConfig.webServerInstanceId, ApiConfig.webServerRegion);
-    final dbState = await LambdaService.getInstanceState(
-        ApiConfig.dbServerInstanceId, ApiConfig.dbServerRegion);
 
-    final serversDown =
-        webState != 'running' || dbState != 'running';
-
-    if (serversDown) {
-      return ConnectionStatus.serversDown;
+    if (webState != 'running') {
+      return ConnectionStatus.serverDown;
     }
 
-    // 2. Only check VPN if servers are up
+    // 2. Server is up — check VPN reachability
     final vpnOk = await isConnected();
     if (!vpnOk) return ConnectionStatus.vpnDisconnected;
 
     return ConnectionStatus.allGood;
   }
-
-  /// Use this on every screen action that needs the connection.
-  /// Shows the right dialog automatically.
+  
+  /// Shows the right dialog automatically and returns false if blocked.
   static Future<bool> guardAction(BuildContext context) async {
     final status = await fullCheck();
 
-    if (status == ConnectionStatus.serversDown) {
+    if (status == ConnectionStatus.serverDown) {
       if (context.mounted) await ServerDownWarning.show(context);
       return false;
     }
