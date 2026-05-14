@@ -1,6 +1,6 @@
-# 🎮 MonsterDex — Cloud-Based Monster Catching App
+# 🎮 MonsterDex - Cloud-Based Monster Catching App
 
-> A real-world monster catching mobile application built with Flutter, powered by AWS cloud infrastructure.  
+> A real-world monster catching mobile application built with Flutter, powered by AWS cloud infrastructure.
 
 ---
 
@@ -11,7 +11,7 @@
 - [AWS Infrastructure](#aws-infrastructure)
   - [VPC Setup](#vpc-setup)
   - [VPC Peering](#vpc-peering)
-  - [EC2 Instances](#ec2-instances)
+  - [EC2 Instance](#ec2-instance)
   - [RDS Database](#rds-database)
   - [Lambda Function](#lambda-function)
   - [Security Groups](#security-groups)
@@ -51,15 +51,10 @@ Mobile App (Flutter)
              │ VPC Peering
              ▼
 ┌─────────────────────────┐
-│  EC2 Database Server    │  us-east-1 (N. Virginia)
-└────────────┬────────────┘
-             │ 
-             ▼
-┌─────────────────────────┐
-│  Amazon RDS MySQL       │  us-east-1
-│  MonsterDexDB          │
+│  Amazon RDS MySQL       │  us-east-1 (N. Virginia)
+│  haumonstersDB          │
 └─────────────────────────┘
-             │
+
 ┌─────────────────────────┐
 │  AWS Lambda             │  us-east-1
 │  EC2 Toggle / Status    │
@@ -84,7 +79,7 @@ Each VPC has:
 
 ### VPC Peering
 
-A cross-region VPC peering connection links Paris (Web) → N. Virginia (DB).
+A cross-region VPC peering connection links Paris (Web) → N. Virginia (RDS).
 
 **Route Table updates required:**
 
@@ -93,14 +88,13 @@ A cross-region VPC peering connection links Paris (Web) → N. Virginia (DB).
 | Paris (Web) | `10.1.0.0/16` | Peering Connection |
 | N. Virginia (DB) | `10.0.0.0/16` | Peering Connection |
 
-### EC2 Instances
+### EC2 Instance
 
 | Instance | Region | Purpose | AMI |
 |----------|--------|---------|-----|
 | `MyParisWebServer` | eu-west-3 (Paris) | Node.js API + Tailscale | Amazon Linux 2023 |
-| `MyNVirginiaDBServer` | us-east-1 (N. Virginia) | MySQL + connection to RDS | Amazon Linux 2023 |    
 
-> The database is managed by both an **EC2 Instance** and **Amazon RDS**.
+> The database is fully managed by **Amazon RDS** — no database EC2 instance is required.
 
 ### RDS Database
 
@@ -108,7 +102,7 @@ A cross-region VPC peering connection links Paris (Web) → N. Virginia (DB).
 |---------|-------|
 | Engine | MySQL 8.0 |
 | Region | us-east-1 (N. Virginia) |
-| DB Name | `monsterdexdb` |
+| DB Name | `haumonstersDB` |
 | Instance | `db.t3.micro` (Free Tier) |
 | VPC | `MyNVirginiaVPC` |
 | Publicly Accessible | No |
@@ -117,15 +111,15 @@ A cross-region VPC peering connection links Paris (Web) → N. Virginia (DB).
 
 | Type | Port | Source |
 |------|------|--------|
-| MySQL/Aurora | 3306 | `10.1.0.0/16` (Paris VPC CIDR) |
+| MySQL/Aurora | 3306 | `10.0.0.0/16` (Paris VPC CIDR) |
 
 ### Lambda Function
 
-Name: `haumonsters-ec2-toggle`  
-Runtime: Python 3.12  
+Name: `haumonsters-ec2-toggle`
+Runtime: Python 3.12
 Role: Requires `AmazonEC2FullAccess`
 
-Used to start/stop/check EC2 instances from the mobile app.
+Used to start/stop/check the web server EC2 instance from the mobile app.
 
 **Function URL:** Enable with Auth type `NONE` for app access.
 
@@ -157,9 +151,7 @@ def lambda_handler(event, context):
 
     action      = body.get('action')
     instance_id = body.get('instance_id')
-    region      = body.get('region', 'us-east-1')
-
-    print(f"Parsed → action={action}, instance_id={instance_id}, region={region}")
+    region      = body.get('region', 'eu-west-3')
 
     if not action or not instance_id:
         return {
@@ -174,41 +166,26 @@ def lambda_handler(event, context):
         if action == 'status':
             resp  = ec2.describe_instances(InstanceIds=[instance_id])
             state = resp['Reservations'][0]['Instances'][0]['State']['Name']
-            return {
-                'statusCode': 200,
-                'headers': CORS_HEADERS,
-                'body': json.dumps({'state': state})
-            }
+            return {'statusCode': 200, 'headers': CORS_HEADERS,
+                    'body': json.dumps({'state': state})}
 
         elif action == 'start':
             ec2.start_instances(InstanceIds=[instance_id])
-            return {
-                'statusCode': 200,
-                'headers': CORS_HEADERS,
-                'body': json.dumps({'result': 'starting'})
-            }
+            return {'statusCode': 200, 'headers': CORS_HEADERS,
+                    'body': json.dumps({'result': 'starting'})}
 
         elif action == 'stop':
             ec2.stop_instances(InstanceIds=[instance_id])
-            return {
-                'statusCode': 200,
-                'headers': CORS_HEADERS,
-                'body': json.dumps({'result': 'stopping'})
-            }
+            return {'statusCode': 200, 'headers': CORS_HEADERS,
+                    'body': json.dumps({'result': 'stopping'})}
 
         else:
-            return {
-                'statusCode': 400,
-                'headers': CORS_HEADERS,
-                'body': json.dumps({'error': f'Invalid action: {action}'})
-            }
+            return {'statusCode': 400, 'headers': CORS_HEADERS,
+                    'body': json.dumps({'error': f'Invalid action: {action}'})}
 
     except Exception as e:
-        return {
-            'statusCode': 500,
-            'headers': CORS_HEADERS,
-            'body': json.dumps({'error': str(e)})
-        }
+        return {'statusCode': 500, 'headers': CORS_HEADERS,
+                'body': json.dumps({'error': str(e)})}
 ```
 
 ### Security Groups
@@ -220,7 +197,7 @@ def lambda_handler(event, context):
 | Custom TCP | TCP | 8000 | `100.64.0.0/10` (Tailscale range) |
 | HTTP | TCP | 80 | `100.64.0.0/10` (Tailscale range) |
 | HTTPS | TCP | 443 | `100.64.0.0/10` (Tailscale range) |
-| SSH | TCP | 22 | 0.0.0.0 |
+| SSH | TCP | 22 | Your IP |
 
 > Port 8000 is only accessible through Tailscale VPN — direct internet access is blocked.
 
@@ -246,6 +223,12 @@ sudo tailscale status
 ```
 
 ### MagicDNS
+
+Enable MagicDNS in the Tailscale admin console. Your server gets a hostname like:
+
+```
+MyParisWebServer.your-tailnet-name.ts.net
+```
 
 This hostname resolves correctly for **every user on your tailnet** regardless of their assigned Tailscale IP — no hardcoded IPs needed.
 
@@ -406,16 +389,12 @@ lib/
 ├── main.dart                        # App entry, session restore
 ├── constants/
 │   ├── theme.dart                   # Colors, gradients, type colors
-│   └── api.dart                     # Base URL, instance IDs, Lambda URL
+│   └── api.dart                     # Base URL, instance ID, Lambda URL
 ├── services/
 │   ├── api_service.dart             # HTTP wrapper (get/post/put/delete)
 │   ├── tailscale_service.dart       # VPN + server status checks
 │   ├── lambda_service.dart          # EC2 start/stop/status via Lambda
 │   └── permission_service.dart      # Android runtime permissions
-├── models/
-│   ├── player.dart
-│   ├── monster.dart
-│   └── catch.dart
 ├── screens/
 │   ├── welcome_screen.dart          # Login/Register entry + status
 │   ├── login_screen.dart            # Login form (MD5 password)
@@ -437,7 +416,6 @@ lib/
     │   ├── android_logo.png         # Splash Screen Logo Android 12 & Above
     │   ├── branding_splash.png      # Splash Screen Branding Android 11 & Below
     │   ├── logo_splash.png          # Splash Screen Logo Android 11 & Below
-    │   ├── logo.png                 # App logo    
     │   ├── logo.png                 # App logo
     │   └── types/                   # 18 type images (400x160px PNG)
     │       ├── normal.png
@@ -457,20 +435,21 @@ Update `lib/constants/api.dart` with your values:
 ```dart
 class ApiConfig {
   static const String tailnetName = 'YOUR-TAILNET.ts.net';
+  static const String webServerHostname = 'MyParisWebServer';
   static const int apiPort = 8000;
 
   static String get baseUrl =>
-      'http://.$tailnetName:$apiPort';
+      'http://$webServerHostname.$tailnetName:$apiPort';
 
+  // AWS Lambda Function URL
   static const String lambdaUrl =
       'https://XXXXXXX.lambda-url.us-east-1.on.aws/';
 
-  // EC2 Instance IDs
+  // Web Server EC2 only — DB is managed by RDS
   static const String webServerInstanceId = 'i-XXXXXXXXXXXXXXXXX';
-  static const String dbServerInstanceId  = 'i-XXXXXXXXXXXXXXXXX';
   static const String webServerRegion = 'eu-west-3';
-  static const String dbServerRegion  = 'us-east-1';
 }
+```
 
 ### Running the App
 
@@ -516,7 +495,7 @@ Add to `AndroidManifest.xml`:
 - On every action: checks EC2 status first, then VPN reachability
 - Server offline → EC2 panel opens automatically
 - VPN disconnected → Tailscale instructions popup with step-by-step guide
-- Login/Register buttons greyed out until both servers are running
+- Login/Register buttons greyed out until the server is running
 
 ### 🎮 Monster Catching
 - GPS-based proximity detection using Haversine formula
@@ -543,11 +522,11 @@ Add to `AndroidManifest.xml`:
 ### ⚙️ Settings
 - Change player name, username, and password
 - Real-time Tailscale connection status
-- EC2 instance toggle and status (web + DB servers)
+- EC2 instance toggle and status (web server)
 - Logout with confirmation dialog
 
 ### ☁️ EC2 Management
-- Start/stop EC2 instances directly from the app
+- Start/stop the web server EC2 instance directly from the app
 - Live status indicators (running/stopped/pending)
 - Available on Welcome screen and Settings screen
 - Powered by AWS Lambda — no credentials stored in app
@@ -611,8 +590,10 @@ Type PNG images should be placed at `assets/images/types/<typename>.png` (400×1
 
 ## Notes
 
-- The app uses **OpenStreetMap** via `flutter_map` for all map views
+- The app uses OpenStreetMap via flutter_map for all map views
 - Images uploaded through the app are stored in `/home/ec2-user/hauapi/uploads/monsters/` on the web server and served statically at `http://<tailscale-host>:8000/uploads/monsters/<filename>`
 - All timestamps are stored in UTC and displayed in **GMT+8 (24-hour format)**
 
 ---
+
+*Holy Angel University — BSIT Cloud Computing | 2025*
