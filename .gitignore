@@ -1,0 +1,37 @@
+# Logs
+*.log
+logs/
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+build/
+**/GeneratedPluginRegistrant.*
+**/generated_plugin_registrant.*
+
+# Android
+android/local.properties
+android/.gradle/
+*.jks
+*.keystore
+key.properties
+
+# iOS / macOS
+**/Pods/
+**/ios/Flutter/ephemeral/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node API
+node_modules/
+.env
