@@ -1,42 +1,52 @@
-# 🎮 MonsterDex - Cloud-Based Monster Catching App
+<div align="center">
 
-> A real-world monster catching mobile application built with Flutter, powered by AWS cloud infrastructure.
+# 🎮 MonsterDex
 
----
+**A real-world, GPS-based monster catching game built with Flutter and powered by AWS.**
 
-## 📋 Table of Contents
+![Flutter](https://img.shields.io/badge/Flutter-3.32%2B-02569B?logo=flutter&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-20-339933?logo=nodedotjs&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-EC2%20%7C%20RDS%20%7C%20Lambda-FF9900?logo=amazonaws&logoColor=white)
+![Tailscale](https://img.shields.io/badge/Tailscale-VPN-242424?logo=tailscale&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [AWS Infrastructure](#aws-infrastructure)
-  - [VPC Setup](#vpc-setup)
-  - [VPC Peering](#vpc-peering)
-  - [EC2 Instance](#ec2-instance)
-  - [RDS Database](#rds-database)
-  - [Lambda Function](#lambda-function)
-  - [Security Groups](#security-groups)
-- [Tailscale VPN](#tailscale-vpn)
-- [Database Schema](#database-schema)
-- [API Server](#api-server)
-  - [Endpoints](#endpoints)
-  - [Setup](#api-setup)
-- [Flutter App](#flutter-app)
-  - [Prerequisites](#prerequisites)
-  - [Project Structure](#project-structure)
-  - [Configuration](#configuration)
-  - [Running the App](#running-the-app)
-- [Features](#features)
-- [Dependencies](#dependencies)
+</div>
 
----
+<!-- Screenshots: add the six PNGs listed below to assets/images/readme/ -->
+<table align="center">
+  <tr>
+    <td align="center"><img src="assets/images/readme/welcome.png" width="200" alt="Welcome screen"/><br/><sub>Welcome</sub></td>
+    <td align="center"><img src="assets/images/readme/dashboard.png" width="200" alt="Dashboard"/><br/><sub>Dashboard</sub></td>
+    <td align="center"><img src="assets/images/readme/catch.png" width="200" alt="Catch screen"/><br/><sub>Catch</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/images/readme/monsters.png" width="200" alt="Monster management"/><br/><sub>Monsters</sub></td>
+    <td align="center"><img src="assets/images/readme/leaderboard.png" width="200" alt="Leaderboard"/><br/><sub>Leaderboard</sub></td>
+    <td align="center"><img src="assets/images/readme/settings.png" width="200" alt="Settings"/><br/><sub>Settings</sub></td>
+  </tr>
+</table>
+
+> ⚠️ **Project status:** the AWS infrastructure behind MonsterDex (EC2, RDS and Lambda) has been **terminated**, so the app and the APKs on the Releases page **no longer work**. The code and docs are kept as a reference for how it was built, and you can deploy your own backend to run it again.
 
 ## Overview
 
-MonsterDex is a location-based monster catching game similar to Pokémon GO. Players connect via Tailscale VPN, scan their surroundings using GPS, and catch monsters that spawn at registered real-world coordinates. The app is backed by AWS infrastructure with a web server in Paris and a managed RDS MySQL database in N. Virginia, connected via VPC Peering.
+MonsterDex is a location-based monster catching game similar to Pokémon GO. Players connect through a Tailscale VPN, scan their surroundings with GPS, and catch monsters that spawn at registered real-world coordinates.
 
----
+The backend is a Node.js API on an EC2 web server in Paris, talking to a managed RDS MySQL database in N. Virginia over VPC Peering. A small Lambda function lets the app start and stop the server from the phone.
 
-## Architecture
+> 🎓 Built as a course requirement for **Cloud Computing**. See the [academic disclaimer](#credits).
+
+## Features
+
+- 🎮 **Catch monsters:** GPS proximity scan (Haversine), catch sound and 5-second flashlight strobe, per-monster catch details
+- 🦎 **Manage monsters:** full CRUD, spawn locations picked on an OpenStreetMap map with a live radius preview, image upload, 18 monster types
+- 🏆 **Leaderboard:** top 10 players with a gold/silver/bronze podium
+- 🔐 **Accounts:** registration, login, persistent session with auto-login, profile editing
+- 🌐 **VPN and server guard:** every action checks server status first, then VPN reachability, and guides the player through whatever is missing
+- ☁️ **EC2 control from the app:** start, stop and check the web server through AWS Lambda, with no AWS credentials stored in the app
+
+## How It Works
 
 ```
 Mobile App (Flutter)
@@ -61,537 +71,119 @@ Mobile App (Flutter)
 └─────────────────────────┘
 ```
 
----
+## Tech Stack
 
-## AWS Infrastructure
+| Layer | Technology |
+|-------|------------|
+| Mobile app | Flutter / Dart, `flutter_map` (OpenStreetMap), `geolocator`, `audioplayers`, `torch_light` |
+| API | Node.js 20, Express, `mysql2`, `multer`, PM2 |
+| Database | Amazon RDS, MySQL 8.0 |
+| Networking | Tailscale (MagicDNS), AWS VPC Peering |
+| Cloud | EC2 (Amazon Linux 2023), Lambda (Python 3.12) |
 
-### VPC Setup
+The full list of app packages is in [`pubspec.yaml`](pubspec.yaml).
 
-| VPC | Region | CIDR | Purpose |
-|-----|--------|------|---------|
-| `MyParisVPC` | eu-west-3 (Paris) | `10.0.0.0/16` | Web Server |
-| `MyNVirginiaVPC` | us-east-1 (N. Virginia) | `10.1.0.0/16` | RDS Database |
+## Release APKs (No Longer Functional)
 
-Each VPC has:
-- A public subnet (`10.x.1.0/24`)
-- An Internet Gateway
-- A Route Table with `0.0.0.0/0 → IGW`
+> ⚠️ **The APKs on the [Releases page](https://github.com/Lintahlo-001/MonsterDex/releases) no longer work.** They were built against the project's original AWS servers, which have been terminated, so the app cannot log in or reach a server. They are kept for reference only.
+>
+> To run MonsterDex today, deploy your own backend (see [Documentation](#documentation)) and [build the app from source](#build-from-source) with your own `env.json`.
 
-### VPC Peering
+<details>
+<summary>Original install steps (for reference)</summary>
 
-A cross-region VPC peering connection links Paris (Web) → N. Virginia (RDS).
+**You need:** an Android phone running Android 6.0 or newer, the [Tailscale](https://tailscale.com/download) app, and an invite to the project's tailnet (ask the network admin, see [docs/tailscale.md](docs/tailscale.md#joining-the-network)). The game server must also be running, but you can start it from inside the app.
 
-**Route Table updates required:**
+1. **Download the APK.** Open the [latest release](https://github.com/Lintahlo-001/MonsterDex/releases/latest) on your phone, scroll to **Assets**, and tap the `.apk` file.
+2. **Allow installs from this source.** Open the downloaded file (from the browser's download notification or the **Files** app). Android will ask for permission to install apps from that source, so tap **Settings** and turn on **Allow from this source**. On Android 7 and older, enable **Settings → Security → Unknown sources** instead.
+3. **Install.** Tap **Install**. If Google Play Protect warns about an unrecognized app, tap **More details → Install anyway**. The APK is not distributed through the Play Store, so this warning is expected.
+4. **Set up Tailscale.** Install Tailscale from the Play Store, accept the invite to the tailnet, and turn the VPN **on**.
+5. **Open MonsterDex and allow permissions.** Grant **location** access (needed to scan for monsters) and, when asked, **photos/media** access (only needed to upload monster images).
+6. **Check the server status** on the welcome screen. If the server is stopped, tap the EC2 button to start it and wait until it shows **running**. Then register or log in.
 
-| Route Table | Destination | Target |
-|-------------|-------------|--------|
-| Paris (Web) | `10.1.0.0/16` | Peering Connection |
-| N. Virginia (DB) | `10.0.0.0/16` | Peering Connection |
+**Updating:** download the newer APK from the Releases page and install it over the existing app. Your account and catches live on the server, so nothing is lost. If Android refuses with a "package conflict" error, uninstall the old version first.
 
-### EC2 Instance
+**Troubleshooting**
 
-| Instance | Region | Purpose | AMI |
-|----------|--------|---------|-----|
-| `MyParisWebServer` | eu-west-3 (Paris) | Node.js API + Tailscale | Amazon Linux 2023 |
+| Problem | Fix |
+|---------|-----|
+| "App not installed" | Uninstall any older copy first, and make sure you downloaded the whole file |
+| Login and Register buttons are greyed out | The server is stopped. Start it with the EC2 button |
+| "VPN disconnected" popup | Open Tailscale and connect, then try again |
+| No monsters found when scanning | You must be inside a monster's spawn radius. Check the **Monsters** tab map for spawn spots |
 
-> The database is fully managed by **Amazon RDS** — no database EC2 instance is required.
+</details>
 
-### RDS Database
+## Build from Source
 
-| Setting | Value |
-|---------|-------|
-| Engine | MySQL 8.0 |
-| Region | us-east-1 (N. Virginia) |
-| DB Name | `haumonstersDB` |
-| Instance | `db.t3.micro` (Free Tier) |
-| VPC | `MyNVirginiaVPC` |
-| Publicly Accessible | No |
+The app needs a running backend and Tailscale, so set those up first (see [Documentation](#documentation)).
 
-**RDS Security Group** — allow inbound:
-
-| Type | Port | Source |
-|------|------|--------|
-| MySQL/Aurora | 3306 | `10.0.0.0/16` (Paris VPC CIDR) |
-
-### Lambda Function
-
-Name: `haumonsters-ec2-toggle`
-Runtime: Python 3.12
-Role: Requires `AmazonEC2FullAccess`
-
-Used to start/stop/check the web server EC2 instance from the mobile app.
-
-**Function URL:** Enable with Auth type `NONE` for app access.
-
-```python
-import boto3
-import json
-
-CORS_HEADERS = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
-
-def lambda_handler(event, context):
-    if event.get('requestContext', {}).get('http', {}).get('method') == 'OPTIONS':
-        return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
-
-    body = event
-    if 'body' in event:
-        raw = event['body']
-        if isinstance(raw, str):
-            try:
-                body = json.loads(raw)
-            except Exception:
-                body = {}
-        elif isinstance(raw, dict):
-            body = raw
-
-    action      = body.get('action')
-    instance_id = body.get('instance_id')
-    region      = body.get('region', 'eu-west-3')
-
-    if not action or not instance_id:
-        return {
-            'statusCode': 400,
-            'headers': CORS_HEADERS,
-            'body': json.dumps({'error': 'Missing action or instance_id'})
-        }
-
-    try:
-        ec2 = boto3.client('ec2', region_name=region)
-
-        if action == 'status':
-            resp  = ec2.describe_instances(InstanceIds=[instance_id])
-            state = resp['Reservations'][0]['Instances'][0]['State']['Name']
-            return {'statusCode': 200, 'headers': CORS_HEADERS,
-                    'body': json.dumps({'state': state})}
-
-        elif action == 'start':
-            ec2.start_instances(InstanceIds=[instance_id])
-            return {'statusCode': 200, 'headers': CORS_HEADERS,
-                    'body': json.dumps({'result': 'starting'})}
-
-        elif action == 'stop':
-            ec2.stop_instances(InstanceIds=[instance_id])
-            return {'statusCode': 200, 'headers': CORS_HEADERS,
-                    'body': json.dumps({'result': 'stopping'})}
-
-        else:
-            return {'statusCode': 400, 'headers': CORS_HEADERS,
-                    'body': json.dumps({'error': f'Invalid action: {action}'})}
-
-    except Exception as e:
-        return {'statusCode': 500, 'headers': CORS_HEADERS,
-                'body': json.dumps({'error': str(e)})}
-```
-
-### Security Groups
-
-**Web Server (`MyParisSG`) — Paris:**
-
-| Type | Protocol | Port | Source |
-|------|----------|------|--------|
-| Custom TCP | TCP | 8000 | `100.64.0.0/10` (Tailscale range) |
-| HTTP | TCP | 80 | `100.64.0.0/10` (Tailscale range) |
-| HTTPS | TCP | 443 | `100.64.0.0/10` (Tailscale range) |
-| SSH | TCP | 22 | Your IP |
-
-> Port 8000 is only accessible through Tailscale VPN — direct internet access is blocked.
-
-**RDS (`rds-ec2-2`) — N. Virginia:**
-
-| Type | Protocol | Port | Source |
-|------|----------|------|--------|
-| MySQL/Aurora | TCP | 3306 | `10.0.0.0/16` (Paris VPC CIDR) |
-
----
-
-## Tailscale VPN
-
-Tailscale is installed **only on the Paris web server**. All mobile users must join the tailnet to access the API.
-
-### Install on Web Server
+**Prerequisites:** Flutter 3.32+ (Dart `^3.8.1`), an Android device or emulator (API 23+), and Tailscale on the phone.
 
 ```bash
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up
-# Approve the auth link in browser
-sudo tailscale status
-```
+git clone https://github.com/Lintahlo-001/MonsterDex.git
+cd MonsterDex
 
-### MagicDNS
+# 1. Create your local config and fill in your own server details
+cp env.example.json env.json
 
-Enable MagicDNS in the Tailscale admin console. Your server gets a hostname like:
-
-```
-MyParisWebServer.your-tailnet-name.ts.net
-```
-
-This hostname resolves correctly for **every user on your tailnet** regardless of their assigned Tailscale IP — no hardcoded IPs needed.
-
-### Joining the Network
-
-1. Install Tailscale on your phone (App Store / Google Play)
-2. Get the invite link from the network admin
-3. Join the tailnet and connect
-4. The app will automatically reach the server via MagicDNS
-
----
-
-## Database Schema
-
-Database: `haumonstersDB`
-
-### `playerstbl`
-| Column | Type | Notes |
-|--------|------|-------|
-| `player_id` | INT UNSIGNED AUTO_INCREMENT | Primary Key |
-| `player_name` | VARCHAR(150) | Display name (unique) |
-| `username` | VARCHAR(100) | Login username (unique) |
-| `password` | VARCHAR(255) | MD5 hashed |
-| `created_at` | DATETIME | Default: CURRENT_TIMESTAMP |
-
-### `monsterstbl`
-| Column | Type | Notes |
-|--------|------|-------|
-| `monster_id` | INT UNSIGNED AUTO_INCREMENT | Primary Key |
-| `monster_name` | VARCHAR(100) | |
-| `monster_type` | VARCHAR(100) | One of 18 types |
-| `spawn_latitude` | DECIMAL(10,7) | GPS coordinate |
-| `spawn_longitude` | DECIMAL(10,7) | GPS coordinate |
-| `spawn_radius_meters` | DECIMAL(10,2) | Default: 100.00 |
-| `picture_url` | VARCHAR(500) | Uploaded image URL |
-
-### `monster_catchestbl`
-| Column | Type | Notes |
-|--------|------|-------|
-| `catch_id` | INT UNSIGNED AUTO_INCREMENT | Primary Key |
-| `player_id` | INT UNSIGNED | FK → playerstbl |
-| `monster_id` | INT UNSIGNED | FK → monsterstbl |
-| `location_id` | INT UNSIGNED | FK → locationstbl |
-| `latitude` | DECIMAL(10,7) | Where it was caught |
-| `longitude` | DECIMAL(10,7) | Where it was caught |
-| `catch_datetime` | DATETIME | Default: CURRENT_TIMESTAMP |
-
-### `locationstbl`
-| Column | Type | Notes |
-|--------|------|-------|
-| `location_id` | INT UNSIGNED AUTO_INCREMENT | Primary Key |
-| `location_name` | VARCHAR(100) | |
-
----
-
-## API Server
-
-### API Setup
-
-SSH into the Paris web server:
-
-```bash
-ssh -i MyParisWebServerKP.pem ec2-user@<WEB_PUBLIC_IP>
-```
-
-```bash
-# Install Node.js
-curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-sudo dnf install -y nodejs
-
-# Create project
-mkdir /home/ec2-user/hauapi && cd /home/ec2-user/hauapi
-npm init -y
-npm install express mysql2 cors body-parser multer dotenv
-```
-
-Create `.env`:
-
-```env
-DB_HOST=your-rds-endpoint.rds.amazonaws.com
-DB_PORT=3306
-DB_USER=haumonsters_admin
-DB_PASS=your_password
-DB_NAME=haumonstersDB
-API_PORT=8000
-```
-
-```bash
-# Run with PM2
-sudo npm install -g pm2
-pm2 start index.js --name hauapi
-pm2 startup
-pm2 save
-```
-
-### Endpoints
-
-#### Auth
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/register` | Register new player |
-| POST | `/login` | Login (returns player info) |
-
-#### Players
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/players` | Get all players |
-| GET | `/players/:id` | Get player by ID |
-| PUT | `/players/:id` | Update player info |
-| DELETE | `/players/:id` | Delete player |
-
-#### Monsters
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/monsters` | Get all monsters |
-| POST | `/monsters` | Add new monster |
-| PUT | `/monsters/:id` | Edit monster |
-| DELETE | `/monsters/:id` | Delete monster |
-
-#### Catching
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/scan` | Scan for nearby monsters (lat/lng) |
-| POST | `/catch` | Catch a monster |
-| GET | `/catches/:player_id` | Get player's catches |
-| DELETE | `/catches/:catch_id` | Release a caught monster |
-
-#### Leaderboard
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/leaderboard` | Top 10 players by catches |
-
-#### Upload
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/upload` | Upload monster image (multipart/form-data) |
-
-#### Health
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Server health check (used for VPN detection) |
-
----
-
-## Flutter App
-
-### Prerequisites
-
-- Flutter SDK 3.x
-- Android Studio / VS Code
-- Android device or emulator (API 23+)
-- Tailscale installed on your phone
-
-### Project Structure
-
-```
-lib/
-├── main.dart                        # App entry, session restore
-├── constants/
-│   ├── theme.dart                   # Colors, gradients, type colors
-│   └── api.dart                     # Base URL, instance ID, Lambda URL
-├── services/
-│   ├── api_service.dart             # HTTP wrapper (get/post/put/delete)
-│   ├── tailscale_service.dart       # VPN + server status checks
-│   ├── lambda_service.dart          # EC2 start/stop/status via Lambda
-│   └── permission_service.dart      # Android runtime permissions
-├── screens/
-│   ├── welcome_screen.dart          # Login/Register entry + status
-│   ├── login_screen.dart            # Login form (MD5 password)
-│   ├── register_screen.dart         # Registration form
-│   ├── main_nav.dart                # Glass bottom navbar shell
-│   ├── dashboard_screen.dart        # Caught monsters + catch FAB
-│   ├── catch_screen.dart            # GPS scan + catch with flashlight/sound
-│   ├── monsters_screen.dart         # Monster CRUD list + map
-│   ├── monster_form_screen.dart     # Add/edit monster with map + image upload
-│   ├── leaderboard_screen.dart      # Top 10 podium + rankings
-│   └── settings_screen.dart        # Profile edit + VPN status + logout
-├── widgets/
-│   ├── ec2_status_button.dart       # EC2 toggle pill (welcome + settings)
-│   ├── tailscale_dialog.dart        # VPN instructions popup + EC2 panel
-│   └── app_snackbar.dart            # Styled success/error/gotcha snackbars
-└── assets/
-    ├── images/
-    │   ├── android_branding.png     # Splash Screen Branding Android 12 & Above
-    │   ├── android_logo.png         # Splash Screen Logo Android 12 & Above
-    │   ├── branding_splash.png      # Splash Screen Branding Android 11 & Below
-    │   ├── logo_splash.png          # Splash Screen Logo Android 11 & Below
-    │   ├── logo.png                 # App logo
-    │   └── types/                   # 18 type images (400x160px PNG)
-    │       ├── normal.png
-    │       ├── fire.png
-    │       ├── water.png
-    │       └── ... (all 18 types)
-    ├── fonts/
-    │   └── ComicRelief-Regular.ttf
-    └── sounds/
-        └── gotcha.mp3               # Catch sound effect
-```
-
-### Configuration
-
-Update `lib/constants/api.dart` with your values:
-
-```dart
-class ApiConfig {
-  static const String tailnetName = 'YOUR-TAILNET.ts.net';
-  static const String webServerHostname = 'MyParisWebServer';
-  static const int apiPort = 8000;
-
-  static String get baseUrl =>
-      'http://$webServerHostname.$tailnetName:$apiPort';
-
-  // AWS Lambda Function URL
-  static const String lambdaUrl =
-      'https://XXXXXXX.lambda-url.us-east-1.on.aws/';
-
-  // Web Server EC2 only — DB is managed by RDS
-  static const String webServerInstanceId = 'i-XXXXXXXXXXXXXXXXX';
-  static const String webServerRegion = 'eu-west-3';
-}
-```
-
-### Running the App
-
-```bash
-flutter clean
+# 2. Run the app with that config
 flutter pub get
-flutter run
+flutter run --dart-define-from-file=env.json
 ```
 
-For release build:
+Release build:
 
 ```bash
-flutter build apk --release
+flutter build apk --release --dart-define-from-file=env.json
 ```
 
-### Required Android Permissions
+`env.json` holds your server hostname, Lambda URL and EC2 instance ID. It is git-ignored, so your real values never get committed. See [docs/flutter-app.md](docs/flutter-app.md#configuration) for every key, and for Android permissions.
 
-Add to `AndroidManifest.xml`:
+## Documentation
 
-```xml
-<uses-permission android:name="android.permission.INTERNET"/>
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
-<uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-<uses-permission android:name="android.permission.CAMERA"/>
-<uses-permission android:name="android.permission.FLASHLIGHT"/>
-<uses-feature android:name="android.hardware.camera.flash" android:required="false"/>
+| Guide | What's inside |
+|-------|---------------|
+| [AWS setup](docs/aws-setup.md) | VPCs, peering, EC2, RDS, security groups, Lambda, security considerations |
+| [Tailscale](docs/tailscale.md) | Installing on the server, MagicDNS, joining the network |
+| [Database](docs/database.md) | Schema for all four tables |
+| [API server](docs/api.md) | Server setup, `.env`, PM2, every endpoint |
+| [Flutter app](docs/flutter-app.md) | Configuration, permissions, project structure, monster types |
+
+## Project Structure
+
+```
+MonsterDex/
+├── lib/            # Flutter app (screens, services, widgets, models, constants)
+├── assets/         # Images, type badges, fonts, sounds (+ README screenshots)
+├── APIs/           # Node.js API server (index.js)
+├── lambda/         # EC2 start/stop/status Lambda function
+├── docs/           # Setup and reference guides
+├── env.example.json  # Template for your local, git-ignored env.json
+├── android/ ios/ web/ linux/ macos/ windows/   # Flutter platform folders
+└── pubspec.yaml
 ```
 
----
+A full breakdown of `lib/` and `assets/` is in [docs/flutter-app.md](docs/flutter-app.md#project-structure).
 
-## Features
+## Known Limitations
 
-### 🔐 Authentication
-- Player registration with unique username and player name validation
-- MD5 password hashing before transmission and storage
-- Persistent session via SharedPreferences (auto-login on relaunch)
-- Secure logout with session clearing
+This project was built for learning, and a few things are not production-ready:
 
-### 🌐 VPN & Server Guard
-- All API access gated behind Tailscale VPN
-- On every action: checks EC2 status first, then VPN reachability
-- Server offline → EC2 panel opens automatically
-- VPN disconnected → Tailscale instructions popup with step-by-step guide
-- Login/Register buttons greyed out until the server is running
+- The Lambda Function URL uses auth type `NONE` and accepts the instance ID and region from the request. See [AWS setup → Security considerations](docs/aws-setup.md#security-considerations).
+- Passwords are hashed with MD5 and there are no session tokens. The API trusts any request that reaches it, so the VPN is the only access control.
+- The API is served over plain HTTP. Traffic is encrypted by Tailscale, not by the API itself.
 
-### 🎮 Monster Catching
-- GPS-based proximity detection using Haversine formula
-- Monsters spawn at registered GPS coordinates with configurable radius
-- SCAN AREA button checks for monsters within range
-- On catch: plays sound + strobes flashlight for 5 seconds
-- Caught monsters displayed with type-colored borders and timestamps (GMT+8)
-- Tap any caught monster to see catch coordinates and details
-- Release (delete) caught monsters
+## Credits
 
-### 🦎 Monster Management
-- Full CRUD for monsters
-- Map view showing all spawn locations with radius circles
-- Type dropdown with PNG type images (18 types supported)
-- Image upload to web server with URL auto-populated
-- Spawn location set by tapping on OpenStreetMap (no API key needed)
-- Live radius circle preview on map
+- The 18 monster type images in `assets/images/types/` are taken from the **Pokémon X/Y** game assets.
+- Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
+- Font: [Comic Relief](https://fonts.google.com/specimen/Comic+Relief).
 
-### 🏆 Leaderboard
-- Top 10 players by total catches
-- Podium display for top 3 (gold/silver/bronze)
-- Handles 1, 2, or 3+ players gracefully
+> **Academic disclaimer:** MonsterDex was developed as a course requirement for the **Cloud Computing** course. It is a learning project meant to demonstrate cloud infrastructure concepts (VPCs, peering, EC2, RDS, Lambda and VPN networking), not a production-ready product.
 
-### ⚙️ Settings
-- Change player name, username, and password
-- Real-time Tailscale connection status
-- EC2 instance toggle and status (web server)
-- Logout with confirmation dialog
+> **Disclaimer:** MonsterDex is a non-commercial fan and educational project. It is not affiliated with, endorsed by, or sponsored by Nintendo, Game Freak, Creatures Inc., or The Pokémon Company. Pokémon and all related names and assets are trademarks and property of their respective owners.
 
-### ☁️ EC2 Management
-- Start/stop the web server EC2 instance directly from the app
-- Live status indicators (running/stopped/pending)
-- Available on Welcome screen and Settings screen
-- Powered by AWS Lambda — no credentials stored in app
+## License
 
----
-
-## Dependencies
-
-### Flutter Packages
-
-```yaml
-dependencies:
-  http: ^1.2.0
-  shared_preferences: ^2.2.3
-  geolocator: ^12.0.0
-  permission_handler: ^11.3.1
-  flutter_map: ^7.0.2
-  latlong2: ^0.9.1
-  audioplayers: ^6.0.0
-  torch_light: ^1.0.0
-  crypto: ^3.0.3
-  cached_network_image: ^3.3.1
-  image_picker: ^1.1.0
-```
-
-### API Server (Node.js)
-
-```json
-{
-  "express": "latest",
-  "mysql2": "latest",
-  "cors": "latest",
-  "body-parser": "latest",
-  "multer": "latest",
-  "dotenv": "latest",
-  "pm2": "global"
-}
-```
-
----
-
-## Monster Types
-
-The app supports all 18 monster types, each with a custom color and PNG badge image:
-
-| Type | Color | | Type | Color |
-|------|-------|-|------|-------|
-| Normal | `#bbbbaa` | | Fire | `#ff4422` |
-| Water | `#3399ff` | | Grass | `#77cc55` |
-| Electric | `#ffcc33` | | Ice | `#77ddff` |
-| Fighting | `#bb5544` | | Poison | `#aa5599` |
-| Ground | `#ddbb55` | | Flying | `#6699ff` |
-| Psychic | `#ff5599` | | Bug | `#77cc55` |
-| Rock | `#bbaa66` | | Ghost | `#6666bb` |
-| Dragon | `#7766ee` | | Dark | `#775544` |
-| Steel | `#aaaabb` | | Fairy | `#ffaaff` |
-
-Type PNG images should be placed at `assets/images/types/<typename>.png` (400×160px recommended).
-
----
-
-## Notes
-
-- The app uses OpenStreetMap via flutter_map for all map views
-- Images uploaded through the app are stored in `/home/ec2-user/hauapi/uploads/monsters/` on the web server and served statically at `http://<tailscale-host>:8000/uploads/monsters/<filename>`
-- All timestamps are stored in UTC and displayed in **GMT+8 (24-hour format)**
-
----
+The source code is released under the [MIT License](LICENSE). This does **not** cover the Pokémon-related assets or other third-party material listed under [Credits](#credits), which remain the property of their respective owners.
