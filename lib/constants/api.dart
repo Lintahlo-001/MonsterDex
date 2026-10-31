@@ -1,14 +1,19 @@
+/// Server settings for the app.
+/// See `env.example.json` for the keys and docs/flutter-app.md for details.
 class ApiConfig {
-  static const String tailnetName = 'monsterdex.tail55d916.ts.net';
-  static const int apiPort = 8000;
+  static const String tailnetName = String.fromEnvironment('TAILNET_NAME');
 
-  static String get baseUrl =>
-      'http://$tailnetName:$apiPort';
+  static const int apiPort =
+      int.fromEnvironment('API_PORT', defaultValue: 8000);
 
-  static const String lambdaUrl =
-      'https://guejj53w3m6vm7hrfhxq4k6mli0vmzji.lambda-url.us-east-1.on.aws/';
+  static String get baseUrl => 'http://$tailnetName:$apiPort';
 
-  // EC2 Instance ID
-  static const String webServerInstanceId = 'i-0e5055a9f438cee54'; // Paris
-  static const String webServerRegion = 'eu-west-3';
+  /// AWS Lambda Function URL that starts/stops/checks the web server.
+  static const String lambdaUrl = String.fromEnvironment('LAMBDA_URL');
+
+  /// Web server EC2 instance (the database is managed by RDS).
+  static const String webServerInstanceId =
+      String.fromEnvironment('WEB_SERVER_INSTANCE_ID');
+  static const String webServerRegion =
+      String.fromEnvironment('WEB_SERVER_REGION', defaultValue: 'eu-west-3');
 }
